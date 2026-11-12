@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meu Mapa</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+#map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+/* BARRA SUPERIOR */
+.topbar {
+  position: absolute; top: 0; left: 0; z-index: 1000;
+  width: 100%; padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(180deg, rgba(20,30,45,.85), rgba(20,30,45,0));
+}
+.topbar .logo-mini {
+  color: #fff; font-weight: bold; font-size: 16px;
+  letter-spacing: 2px; text-shadow: 0 1px 4px rgba(0,0,0,.5);
+}
+.topbar .logo-mini span { color: #ffd700; }
+
+/* BUSCA */
+.search-box {
+  position: absolute; top: 54px; left: 50%; transform: translateX(-50%);
+  z-index: 1000; display: flex; gap: 8px;
+}
+.search-box input {
+  width: 300px; max-width: 55vw; padding: 12px 16px;
+  border: none; border-radius: 24px; outline: none;
+  box-shadow: 0 3px 12px rgba(0,0,0,.35); font-size: 14px;
+  transition: box-shadow .2s;
+}
+.search-box input:focus { box-shadow: 0 3px 18px rgba(43,108,176,.6); }
+.search-box button {
+  padding: 12px 20px; border: none; border-radius: 24px;
+  background: linear-gradient(135deg, #2b6cb0, #2c5282);
+  color: #fff; font-weight: bold; cursor: pointer;
+  box-shadow: 0 3px 12px rgba(0,0,0,.35);
+  transition: transform .15s, background .2s;
+}
+.search-box button:hover { transform: scale(1.06); background: #2b6cb0; }
+
+/* PAINEL DE INFO */
+#info {
+  position: absolute; bottom: 16px; left: 16px; z-index: 1000;
+  background: rgba(255,255,255,.97); padding: 14px 18px;
+  border-radius: 14px; box-shadow: 0 4px 16px rgba(0,0,0,.3);
+  font-size: 13px; max-width: 340px;
+  border-left: 4px solid #2b6cb0;
+}
+#info b { color: #1a2634; font-size: 14px; }
+
+/* BOTÕES FLUTUANTES */
+.float-btns {
+  position: absolute; bottom: 20px; right: 16px; z-index: 1000;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.fbtn {
+  width: 48px; height: 48px; border: none; border-radius: 50%;
+  background: #fff; box-shadow: 0 3px 12px rgba(0,0,0,.35);
+  font-size: 20px; cursor: pointer;
+  transition: transform .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.fbtn:hover { transform: scale(1.12); }
+
+/* RODAPÉ COM CONTADORES */
+.stats {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  z-index: 1000; display: flex; gap: 14px;
+}
+.stat {
+  background: rgba(255,255,255,.95); padding: 8px 16px;
+  border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,.25);
+  text-align: center; font-family: sans-serif;
+}
+.stat b { display: block; font-size: 17px; color: #2b6cb0; }
+.stat span { font-size: 11px; color: #666; }
+
+/* SPLASH */
+#splash {
+  position: fixed; top: 0; left: 0; z-index: 9999;
+  width: 100%; height: 100%;
+  background: linear-gradient(160deg, #1a2634, #2b6cb0);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 25px; transition: opacity .8s ease;
+}
+#splash.sair { opacity: 0; pointer-events: none; }
+#splash img {
+  width: 110px; height: 110px;
+  animation: pulsar 1.6s ease-in-out infinite;
+}
+@keyframes pulsar {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+#splash h1 {
+  color: #fff; font-family: sans-serif;
+  font-size: 32px; letter-spacing: 4px;
+}
+#splash h1 span { color: #ffd700; }
+#barra {
+  width: 180px; height: 5px;
+  background: rgba(255,255,255,.25); border-radius: 10px; overflow: hidden;
+}
+#barra div {
+  width: 0%; height: 100%; background: #ffd700;
+  animation: carregar 2.2s ease forwards;
+}
+@keyframes carregar { to { width: 100%; } }
+#splash p { color: rgba(255,255,255,.7); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <img src="https://img.icons8.com/fluency/240/map-marker.png" alt="logo">
+  <h1>MEU <span>MAPA</span></h1>
+  <div id="barra"><div></div></div>
+  <p>Carregando o mapa...</p>
+</div>
+
+<div id="map"></div>
+
+<div class="topbar">
+  <div class="logo-mini">MEU <span>MAPA</span> 🌎</div>
+</div>
+
+<div class="search-box">
+  <input id="busca" type="text" placeholder="Buscar cidade ou país...">
+  <button onclick="buscar()">Buscar 🔍</button>
+</div>
+
+<div id="info">Digite uma cidade ou país no campo acima</div>
+
+<div class="float-btns">
+  <button class="fbtn" onclick="minhaLocalizacao()" title="Minha localização">📍</button>
+  <button class="fbtn" id="btnTema" onclick="trocarTema(event)" title="Modo escuro">🌙</button>
+  <button class="fbtn" onclick="limparTudo()" title="Limpar marcadores">🧹</button>
+</div>
+
+<div class="stats">
+  <div class="stat"><b id="stBuscas">0</b><span>Buscas</span></div>
+  <div class="stat"><b id="stMarcadores">0</b><span>Marcadores</span></div>
+</div>
+
+<script>
+const map = L.map('map').setView([-15.79, -47.88], 4);
+
+let camadaAtual = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap'
+}).addTo(map);
+
+let marcadores = [];
+let temaEscuro = false;
+let totalBuscas = 0;
+
+function atualizarStats() {
+  document.getElementById('stBuscas').textContent = totalBuscas;
+  document.getElementById('stMarcadores').textContent = marcadores.length;
+}
+
+async function buscar() {
+  const q = document.getElementById('busca').value.trim();
+  if (!q) return;
+  document.getElementById('info').textContent = 'Buscando...';
+  const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q);
+  const resp = await fetch(url);
+  const dados = await resp.json();
+  if (dados.length === 0) {
+    document.getElementById('info').textContent = 'Não encontrado!';
+    return;
+  }
+  const local = dados[0];
+  const lat = parseFloat(local.lat);
+  const lon = parseFloat(local.lon);
+  map.flyTo([lat, lon], 12, { duration: 2 });
+  const m = L.marker([lat, lon]).addTo(map)
+    .bindPopup('<b>' + local.display_name + '</b>')
+    .openPopup();
+  marcadores.push(m);
+  totalBuscas++;
+  atualizarStats();
+  document.getElementById('info').innerHTML =
+    '<b>' + local.display_name + '</b><br>Lat: ' + lat.toFixed(4) + ' | Lon: ' + lon.toFixed(4);
+}
+
+function minhaLocalizacao() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      map.flyTo([lat, lon], 14, { duration: 2 });
+      const m = L.circleMarker([lat, lon], {
+        radius: 10, color: '#2b6cb0', fillColor: '#3b82f6', fillOpacity: .8
+      }).addTo(map).bindPopup('<b>Você está aqui! 📍</b>');
+      marcadores.push(m);
+      atualizarStats();
+    }, () => alert('Não consegui pegar sua localização.'));
+  } else {
+    alert('Seu navegador não suporta GPS.');
+  }
+}
+
+function trocarTema(e) {
+  temaEscuro = !temaEscuro;
+  map.removeLayer(camadaAtual);
+  camadaAtual = L.tileLayer(temaEscuro
+    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+  document.getElementById('btnTema').textContent = temaEscuro ? '☀️' : '🌙';
+}
+
+function limparTudo() {
+  marcadores.forEach(m => map.removeLayer(m));
+  marcadores = [];
+  atualizarStats();
+  map.flyTo([-15.79, -47.88], 4, { duration: 1.5 });
+}
+
+document.getElementById('busca').addEventListener('keydown', e => {
+  if (e.key === 'Enter') buscar();
+});
+
+setTimeout(() => {
+  document.getElementById('splash').classList.add('sair');
+}, 2400);
+
+atualizarStats();
+</script>
+
+</body>
+</html>
